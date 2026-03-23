@@ -1,10 +1,19 @@
 {
   "name": "copilot-fs-mcp",
-  "version": "0.1.0",
-  "description": "Local MCP server for GitHub Copilot filesystem access (Fase 1)",
+  "version": "1.0.0",
+  "description": "Secure MCP server for controlled filesystem access from GitHub Copilot with automatic backups",
+  "author": "Tu Nombre <tu@email.com>",
+  "homepage": "https://github.com/tu-usuario/copilot-fs-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tu-usuario/copilot-fs-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tu-usuario/copilot-fs-mcp/issues"
+  },
   "main": "dist/index.js",
   "bin": {
-    "copilot-fs-mcp": "./dist/index.js"
+    "copilot-fs-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -12,11 +21,15 @@
     "start": "node dist/index.js",
     "lint": "eslint 'src/**/*.{ts,js}' --ext .ts",
     "test": "vitest",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build && npm test && npm run lint"
   },
   "files": [
     "dist/",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "BACKUPS.md",
+    "config.example.json"
   ],
   "engines": {
     "node": ">=18.0.0"
@@ -24,7 +37,14 @@
   "keywords": [
     "mcp",
     "copilot",
-    "filesystem"
+    "filesystem",
+    "github-copilot",
+    "ai-tools",
+    "model-context-protocol",
+    "vscode",
+    "backup",
+    "security",
+    "permissions"
   ],
   "license": "MIT",
   "devDependencies": {

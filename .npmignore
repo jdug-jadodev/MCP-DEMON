@@ -1,0 +1,28 @@
+# Código fuente (ya está compilado en dist/)
+src/
+tests/
+
+# Configuración de desarrollo
+.eslintrc.json
+.prettierrc
+tsconfig.json
+
+# Archivos de proyecto internos
+cambios-registro.md
+monitor.cjs
+mcp-development-plan.md
+ONE_SPEC.md
+work-plan.md
+
+# Outputs de herramientas
+coverage/
+.mcp-backups/
+*.test.ts
+
+# CI/CD
+github/
+.github/
+
+# Git
+.git/
+.gitignore

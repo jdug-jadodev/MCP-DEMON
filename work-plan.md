@@ -593,130 +593,456 @@
 
 # FASE 5 — Publicación en npm + documentación
 > Objetivo: Paquete instalable públicamente con documentación completa y pipeline CI/CD.
+> **Estado actual:** Proyecto funcional con permisos, backups y tests. Faltan archivos de publicación.
 
 ---
 
-## 5.1 Preparación del `package.json` para publicación
+## 5.1 Archivos de licencia y seguridad (CRÍTICO)
 
 ### Tareas
 
-- [ ] **5.1.1** Configurar todos los campos requeridos por npm:
-  ```json
-  {
-    "name": "copilot-fs-mcp",
-    "version": "1.0.0",
-    "description": "Local MCP server for GitHub Copilot filesystem access",
-    "license": "MIT",
-    "author": "<nombre>",
-    "homepage": "https://github.com/<usuario>/copilot-fs-mcp",
-    "repository": { "type": "git", "url": "..." },
-    "bugs": { "url": "... /issues" }
-  }
+- [ ] **5.1.1** Crear archivo `LICENSE` con texto MIT:
+  ```text
+  MIT License
+  
+  Copyright (c) 2026 [Tu Nombre]
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy...
   ```
-- [ ] **5.1.2** Verificar campo `"bin"` y `"files"`:
-  ```json
-  {
-    "bin": { "copilot-fs-mcp": "./dist/index.js" },
-    "files": ["dist/", "README.md", "LICENSE"]
-  }
+- [ ] **5.1.2** Crear `SECURITY.md` con política de seguridad:
+  ```markdown
+  # Security Policy
+  
+  ## Supported Versions
+  | Version | Supported          |
+  | ------- | ------------------ |
+  | 1.x     | :white_check_mark: |
+  
+  ## Reporting a Vulnerability
+  Please report security vulnerabilities to [email] or create a private security advisory.
   ```
-- [ ] **5.1.3** Añadir `"engines": { "node": ">=18.0.0" }`
-- [ ] **5.1.4** Añadir keywords: `["mcp", "copilot", "filesystem", "github-copilot", "ai-tools"]`
-- [ ] **5.1.5** Añadir scripts de publicación:
-  - `"prepublishOnly": "npm run build && npm test"`
-  - `"prepare": "npm run build"`
+- [ ] **5.1.3** Crear `CHANGELOG.md` con la primera release:
+  ```markdown
+  # Changelog
+  
+  ## [1.0.0] - 2026-03-23
+  
+  ### Added
+  - Sistema de permisos granular con reglas allow/deny
+  - Backup automático antes de modificaciones
+  - 7 herramientas MCP (read, write, list, search, get_permissions, list_backups, restore_backup)
+  - Validación de path traversal
+  - Tests de seguridad e integración
+  - Logging configurable
+  - Hot-reload de configuración
+  ```
+- [ ] **5.1.4** Verificar que `LICENSE` está en encoding UTF-8 sin BOM
 
 ### Criterio de aceptación
-> `npm pack --dry-run` muestra exactamente los archivos esperados (solo `dist/` y `README.md`).
+> Los tres archivos existen y son válidos. `npm pack` no muestra warnings sobre licencia.
 
 ---
 
-## 5.2 Archivo `.npmignore`
+## 5.2 Configuración de `.npmignore` para limpieza del paquete
 
 ### Tareas
 
-- [ ] **5.2.1** Crear `.npmignore` para excluir del paquete publicado:
+- [ ] **5.2.1** Crear `.npmignore` excluyendo archivos de desarrollo:
   ```
+  # Código fuente (ya está compilado en dist/)
   src/
   tests/
+  
+  # Configuración de desarrollo
   .eslintrc.json
   .prettierrc
   tsconfig.json
-  *.test.ts
+  
+  # Archivos de proyecto internos
+  cambios-registro.md
+  monitor.cjs
+  mcp-development-plan.md
+  ONE_SPEC.md
+  work-plan.md
+  
+  # Outputs de herramientas
   coverage/
+  .mcp-backups/
+  *.test.ts
+  
+  # CI/CD
   .github/
+  
+  # Git
+  .git/
+  .gitignore
   ```
-- [ ] **5.2.2** Verificar con `npm pack --dry-run` que ningún archivo sensible o de desarrollo se incluye
+- [ ] **5.2.2** Ejecutar `npm pack --dry-run` y verificar el output:
+  ```bash
+  npm pack --dry-run
+  ```
+- [ ] **5.2.3** Confirmar que SOLO se incluyen:
+  - `dist/` (código compilado)
+  - `README.md`
+  - `LICENSE`
+  - `BACKUPS.md` (documentación de feature)
+  - `config.example.json` (referencia para usuarios)
+  - `package.json`
+- [ ] **5.2.4** Verificar que el tamaño total sea < 500KB (sin node_modules)
 
 ### Criterio de aceptación
-> El tarball resultante contiene únicamente `dist/`, `README.md` y `LICENSE`.
+> `npm pack --dry-run` muestra exactamente 6 items: dist/, README.md, LICENSE, BACKUPS.md, config.example.json, package.json
 
 ---
 
-## 5.3 Licencia y seguridad
+## 5.3 Actualización completa de `package.json`
 
 ### Tareas
 
-- [ ] **5.3.1** Crear archivo `LICENSE` con texto MIT
-- [ ] **5.3.2** Crear `SECURITY.md` con instrucciones para reportar vulnerabilidades
-- [ ] **5.3.3** Ejecutar `npm audit` y resolver todas las vulnerabilidades High/Critical
-- [ ] **5.3.4** Añadir `CHANGELOG.md` con la sección `v1.0.0` listando todos los features
+- [ ] **5.3.1** Actualizar versión a `1.0.0` (actualmente es `0.1.0`)
+- [ ] **5.3.2** Actualizar description a versión final:
+  ```json
+  "description": "Secure MCP server for controlled filesystem access from GitHub Copilot with automatic backups"
+  ```
+- [ ] **5.3.3** Añadir campos de repositorio (ajustar con tu info real):
+  ```json
+  "author": "Tu Nombre <tu@email.com>",
+  "homepage": "https://github.com/tu-usuario/copilot-fs-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tu-usuario/copilot-fs-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tu-usuario/copilot-fs-mcp/issues"
+  }
+  ```
+- [ ] **5.3.4** Expandir keywords para mejor descubrimiento:
+  ```json
+  "keywords": [
+    "mcp",
+    "copilot",
+    "filesystem",
+    "github-copilot",
+    "ai-tools",
+    "model-context-protocol",
+    "vscode",
+    "backup",
+    "security",
+    "permissions"
+  ]
+  ```
+- [ ] **5.3.5** Actualizar campo `files` para incluir LICENSE:
+  ```json
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "BACKUPS.md",
+    "config.example.json"
+  ]
+  ```
+- [ ] **5.3.6** Añadir script `prepublishOnly` para validación pre-publicación:
+  ```json
+  "scripts": {
+    "prepublishOnly": "npm run build && npm test && npm run lint"
+  }
+  ```
+- [ ] **5.3.7** Verificar que `engines.node` está correcto: `">=18.0.0"` (ya está)
+- [ ] **5.3.8** Validar con `npm pkg fix` para corregir problemas automáticamente
+
+### Criterio de aceptación
+> `npm pkg validate` no muestra errores. Todos los campos obligatorios están presentes.
 
 ---
 
-## 5.4 Documentación (`README.md`)
+## 5.4 Mejoras finales del `README.md`
 
 ### Tareas
 
-- [ ] **5.4.1** Sección **What is this**: 2-3 líneas explicando qué hace el paquete
-- [ ] **5.4.2** Sección **Installation**: `npm install -g copilot-fs-mcp`
-- [ ] **5.4.3** Sección **Quick Start**: los 3 pasos de instalación + configuración de VSCode
-- [ ] **5.4.4** Sección **Configuration**: documentar cada campo del `config.json` con tipos y valores por defecto
-- [ ] **5.4.5** Sección **CLI Commands**: tabla con todos los comandos y sus opciones
-- [ ] **5.4.6** Sección **Security**: explicar el modelo de permisos y la protección anti path-traversal
-- [ ] **5.4.7** Sección **Tools Reference**: tabla con las 5 tools MCP, parámetros y ejemplos
-- [ ] **5.4.8** Sección **IDE Configuration**: snippets para VSCode e IntelliJ
-- [ ] **5.4.9** Badge de versión npm, licencia y CI en el encabezado del README
+- [ ] **5.4.1** Añadir badges al inicio del README:
+  ```markdown
+  # 🚀 Copilot FS MCP
+  
+  [![npm version](https://badge.fury.io/js/copilot-fs-mcp.svg)](https://www.npmjs.com/package/copilot-fs-mcp)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Node.js Version](https://img.shields.io/node/v/copilot-fs-mcp)](https://nodejs.org)
+  ```
+- [ ] **5.4.2** Añadir sección de instalación global:
+  ```markdown
+  ## 📦 Installation
+  
+  ### Global installation (recommended)
+  ```bash
+  npm install -g copilot-fs-mcp
+  ```
+  
+  ### npx (no installation)
+  ```bash
+  npx copilot-fs-mcp
+  ```
+  ```
+- [ ] **5.4.3** Añadir sección de Quick Start con pasos numerados:
+  ```markdown
+  ## 🚀 Quick Start
+  
+  1. Install globally:
+     ```bash
+     npm install -g copilot-fs-mcp
+     ```
+  
+  2. Configure VSCode `settings.json`:
+     ```json
+     {
+       "mcp": {
+         "servers": {
+           "local-filesystem": {
+             "command": "copilot-fs-mcp",
+             "args": ["--config", "ruta/a/config.json"]
+           }
+         }
+       }
+     }
+     ```
+  
+  3. Create your config file (see Configuration section below)
+  ```
+- [ ] **5.4.4** Añadir ejemplos de configuración completos con comentarios
+- [ ] **5.4.5** Añadir sección de troubleshooting común:
+  ```markdown
+  ## 🔧 Troubleshooting
+  
+  ### Server not connecting
+  - Verify the path to config.json is absolute
+  - Check VSCode Developer Tools Console for errors
+  
+  ### Permission denied errors
+  - Check your config.json allows the path and operation
+  - Verify paths use forward slashes or escaped backslashes
+  ```
+- [ ] **5.4.6** Añadir tabla comparativa de herramientas con ejemplos de uso
+- [ ] **5.4.7** Documentar todas las opciones de línea de comandos disponibles
+- [ ] **5.4.8** Añadir sección "Contributing" con enlace a issues
 
 ### Criterio de aceptación
-> Un desarrollador nuevo puede instalar y usar el servidor siguiendo solo el README, sin consultar el código.
+> Un usuario nuevo puede instalar y configurar el servidor en menos de 5 minutos siguiendo solo el README.
 
 ---
 
-## 5.5 Pipeline de CI/CD con GitHub Actions
+## 5.5 Tests de validación pre-publicación
 
 ### Tareas
 
-- [ ] **5.5.1** Crear `.github/workflows/ci.yml`:
-  - Trigger: push a `main` y pull requests
-  - Jobs: `lint`, `test`, `build`
-  - Matrix: Node.js 18, 20
-- [ ] **5.5.2** Crear `.github/workflows/publish.yml`:
-  - Trigger: push de tag `v*`
-  - Jobs: ejecutar CI completo → compilar → publicar en npm
-  - Usar `NPM_TOKEN` como secreto del repositorio
-- [ ] **5.5.3** Añadir step de `npm audit` en el workflow de CI para detectar vulnerabilidades automáticamente
-- [ ] **5.5.4** Configurar el paso de publicación con `npm publish --access public`
+- [ ] **5.5.1** Ejecutar suite completa de validaciones:
+  ```bash
+  npm run lint        # Sin errores de linting
+  npm test            # Todos los tests pasan
+  npm run build       # Compilación sin errores
+  npm audit           # Sin vulnerabilidades High/Critical
+  ```
+- [ ] **5.5.2** Verificar que el paquete compila correctamente:
+  ```bash
+  npm run build
+  ls dist/  # Debe mostrar index.js y todas las carpetas
+  ```
+- [ ] **5.5.3** Verificar que el shebang está presente en dist/index.js:
+  ```bash
+  head -n 1 dist/index.js  # Debe mostrar: #!/usr/bin/env node
+  ```
+- [ ] **5.5.4** Simular instalación local:
+  ```bash
+  npm pack
+  # Genera copilot-fs-mcp-1.0.0.tgz
+  npm install -g ./copilot-fs-mcp-1.0.0.tgz
+  which copilot-fs-mcp  # Debe mostrar la ruta instalada
+  ```
+- [ ] **5.5.5** Probar ejecución del binario instalado:
+  ```bash
+  copilot-fs-mcp --help  # Debe mostrar ayuda
+  copilot-fs-mcp --version  # Debe mostrar 1.0.0
+  ```
+- [ ] **5.5.6** Verificar tamaño del paquete:
+  ```bash
+  du -sh copilot-fs-mcp-1.0.0.tgz  # Debe ser < 100KB
+  ```
+- [ ] **5.5.7** Desinstalar después de las pruebas:
+  ```bash
+  npm uninstall -g copilot-fs-mcp
+  ```
 
 ### Criterio de aceptación
-> Al hacer push del tag `v1.0.0`, el paquete aparece en npmjs.com automáticamente.
+> Todas las validaciones pasan. El paquete se instala, ejecuta y desinstala sin errores.
 
 ---
 
-## 5.6 Pruebas de instalación en limpio
+## 5.6 Pipeline CI/CD con GitHub Actions (OPCIONAL)
 
 ### Tareas
 
-- [ ] **5.6.1** En una máquina o perfil de usuario sin el paquete, ejecutar `npm install -g copilot-fs-mcp`
-- [ ] **5.6.2** Verificar que `copilot-fs-mcp --help` funciona
-- [ ] **5.6.3** Ejecutar `copilot-fs-mcp init` y seguir el asistente
-- [ ] **5.6.4** Configurar VSCode y verificar conexión con GitHub Copilot Agent
-- [ ] **5.6.5** Probar en Windows (cmd y PowerShell)
-- [ ] **5.6.6** Probar en macOS o Linux
-- [ ] **5.6.7** Probar con `npx copilot-fs-mcp` sin instalación global
+- [ ] **5.6.1** Crear directorio `.github/workflows/`
+- [ ] **5.6.2** Crear `.github/workflows/ci.yml`:
+  ```yaml
+  name: CI
+  
+  on:
+    push:
+      branches: [main]
+    pull_request:
+      branches: [main]
+  
+  jobs:
+    test:
+      runs-on: ${{ matrix.os }}
+      strategy:
+        matrix:
+          node-version: [18, 20, 22]
+          os: [ubuntu-latest, windows-latest, macos-latest]
+      
+      steps:
+        - uses: actions/checkout@v4
+        - name: Setup Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: ${{ matrix.node-version }}
+        - run: npm ci
+        - run: npm run lint
+        - run: npm test
+        - run: npm run build
+        - run: npm audit --production
+  ```
+- [ ] **5.6.3** Crear `.github/workflows/publish.yml`:
+  ```yaml
+  name: Publish to npm
+  
+  on:
+    push:
+      tags:
+        - 'v*'
+  
+  jobs:
+    publish:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with:
+            node-version: 20
+            registry-url: 'https://registry.npmjs.org'
+        - run: npm ci
+        - run: npm test
+        - run: npm run build
+        - run: npm publish --access public
+          env:
+            NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  ```
+- [ ] **5.6.4** Configurar secreto `NPM_TOKEN` en GitHub:
+  - Ir a npmjs.com → Account → Access Tokens
+  - Crear token de tipo "Automation"
+  - Añadirlo a GitHub Secrets del repositorio
+- [ ] **5.6.5** Hacer commit y push de los workflows
+- [ ] **5.6.6** Verificar que el workflow CI se ejecuta automáticamente
 
 ### Criterio de aceptación
-> La experiencia completa de instalación desde cero tarda menos de 5 minutos y no requiere conocimiento previo del proyecto.
+> El workflow CI se ejecuta en push y todos los jobs pasan. (Este paso es opcional pero recomendado)
+
+---
+
+## 5.7 Publicación en npm
+
+### Tareas
+
+- [ ] **5.7.1** Asegurarse de tener cuenta en npmjs.com
+- [ ] **5.7.2** Login en npm desde la terminal:
+  ```bash
+  npm login
+  # Ingresar username, password, email
+  ```
+- [ ] **5.7.3** Verificar identidad:
+  ```bash
+  npm whoami  # Debe mostrar tu username
+  ```
+- [ ] **5.7.4** Validar que el nombre del paquete está disponible:
+  ```bash
+  npm view copilot-fs-mcp  # Si no existe, está disponible
+  ```
+- [ ] **5.7.5** Hacer dry-run de publicación:
+  ```bash
+  npm publish --dry-run
+  # Verificar los archivos que se publicarán
+  ```
+- [ ] **5.7.6** Publicar el paquete (ESTE ES EL PASO REAL):
+  ```bash
+  npm publish --access public
+  ```
+- [ ] **5.7.7** Verificar en npmjs.com que el paquete está publicado
+- [ ] **5.7.8** Crear git tag con la versión:
+  ```bash
+  git tag v1.0.0
+  git push origin v1.0.0
+  ```
+- [ ] **5.7.9** Crear GitHub Release con las notas del CHANGELOG
+
+### Criterio de aceptación
+> El paquete aparece en https://www.npmjs.com/package/copilot-fs-mcp y se puede instalar con `npm install -g copilot-fs-mcp`
+
+---
+
+## 5.8 Pruebas post-publicación
+
+### Tareas
+
+- [ ] **5.8.1** En una máquina limpia (o usar una VM/contenedor), instalar desde npm:
+  ```bash
+  npm install -g copilot-fs-mcp
+  ```
+- [ ] **5.8.2** Verificar que el binario está disponible:
+  ```bash
+  copilot-fs-mcp --version
+  copilot-fs-mcp --help
+  ```
+- [ ] **5.8.3** Crear un config.json de prueba
+- [ ] **5.8.4** Configurar VSCode con el servidor instalado globalmente
+- [ ] **5.8.5** Probar las 7 herramientas desde GitHub Copilot Agent
+- [ ] **5.8.6** Verificar que los backups funcionan correctamente
+- [ ] **5.8.7** Probar en diferentes sistemas operativos:
+  - Windows (PowerShell y CMD)
+  - macOS (si disponible)
+  - Linux (si disponible)
+- [ ] **5.8.8** Documentar cualquier problema encontrado en GitHub Issues
+
+### Criterio de aceptación
+> La instalación desde npm funciona en todos los sistemas probados. Las 7 herramientas responden correctamente.
+
+---
+
+---
+
+## 5.9 Checklist final de publicación
+
+### Antes de `npm publish`:
+
+- [ ] ✅ `npm audit` sin vulnerabilidades High/Critical
+- [ ] ✅ `npm test` - todos los tests pasan
+- [ ] ✅ `npm run lint` - sin errores de linting
+- [ ] ✅ `npm run build` - compilación exitosa
+- [ ] ✅ `npm pack --dry-run` - verifica archivos incluidos
+- [ ] ✅ Archivo `LICENSE` existe
+- [ ] ✅ Archivo `SECURITY.md` existe
+- [ ] ✅ Archivo `CHANGELOG.md` existe con v1.0.0
+- [ ] ✅ Archivo `.npmignore` configurado
+- [ ] ✅ `package.json` tiene todos los campos (author, repository, bugs, homepage)
+- [ ] ✅ README.md tiene badges y documentación completa
+- [ ] ✅ Shebang presente en `dist/index.js`
+- [ ] ✅ Version en package.json es `1.0.0`
+- [ ] ✅ Estás logueado en npm (`npm whoami`)
+
+### Después de `npm publish`:
+
+- [ ] ✅ Verificar en https://www.npmjs.com/package/copilot-fs-mcp
+- [ ] ✅ Probar instalación: `npm install -g copilot-fs-mcp`
+- [ ] ✅ Crear git tag: `git tag v1.0.0 && git push origin v1.0.0`
+- [ ] ✅ Crear GitHub Release con notas del CHANGELOG
+- [ ] ✅ Probar en máquina limpia o VM
+- [ ] ✅ Anunciar en redes sociales / comunidades relevantes
 
 ---
 
@@ -724,15 +1050,30 @@
 
 ## Resumen de criterios de calidad global
 
-| Criterio | Meta |
-|---|---|
-| Cobertura de tests (motor de permisos) | > 95% |
-| Cobertura de tests (general) | > 80% |
-| Vulnerabilidades npm audit | 0 High/Critical |
-| Path traversal bloqueado | 100% de casos |
-| Tiempo de instalación en limpio | < 5 min |
-| Tamaño del paquete npm | < 1 MB |
+| Criterio | Meta | Estado Actual |
+|---|---|---|
+| Cobertura de tests (motor de permisos) | > 95% | ✅ Implementado |
+| Cobertura de tests (general) | > 80% | ✅ Implementado |
+| Vulnerabilidades npm audit | 0 High/Critical | ✅ 0 vulnerabilidades |
+| Path traversal bloqueado | 100% de casos | ✅ Implementado |
+| Tiempo de instalación en limpio | < 5 min | ⏳ Por probar |
+| Tamaño del paquete npm | < 500 KB | ⏳ Por probar |
+| Shebang en ejecutable | Obligatorio | ✅ Presente |
+| Node.js version | >= 18.0.0 | ✅ Configurado |
 
 ---
 
-*Plan de Trabajo — copilot-fs-mcp v1.0 | Generado el 23/03/2026*
+## Archivos faltantes para publicación
+
+| Archivo | Estado | Prioridad | Bloqueante |
+|---------|--------|-----------|------------|
+| `LICENSE` | ❌ Falta | 🔴 Alta | ✅ Sí |
+| `SECURITY.md` | ❌ Falta | 🟡 Media | ❌ No |
+| `CHANGELOG.md` | ❌ Falta | 🟡 Media | ❌ No |
+| `.npmignore` | ❌ Falta | 🔴 Alta | ✅ Sí |
+| CI/CD workflows | ❌ Falta | 🟢 Baja | ❌ No |
+
+---
+
+*Plan de Trabajo — copilot-fs-mcp v1.0 | Actualizado el 23/03/2026*
+*Basado en análisis detallado del proyecto actual*

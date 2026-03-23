@@ -26,3 +26,5 @@ github/
 # Git
 .git/
 .gitignore
+
+eslint.config.js

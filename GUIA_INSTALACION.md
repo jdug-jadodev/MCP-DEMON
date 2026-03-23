@@ -17,16 +17,19 @@ Antes de comenzar, asegúrate de tener instalado:
 ## 📦 Paso 1: Instalación del Paquete
 
 ### Opción A: Instalación Global (Recomendada)
+
 ```bash
 npm install -g copilot-fs-mcp
 ```
 
 Verifica la instalación:
+
 ```bash
 copilot-fs-mcp --help
 ```
 
 ### Opción B: Uso con npx (Sin instalación)
+
 ```bash
 npx copilot-fs-mcp --help
 ```
@@ -36,12 +39,13 @@ npx copilot-fs-mcp --help
 ## ⚙️ Paso 2: Crear Archivo de Configuración
 
 1. **Crea un directorio para la configuración:**
+
    ```bash
    mkdir -p C:\Users\Usuario\.config\copilot-fs-mcp
    ```
 
 2. **Crea el archivo `config.json`:**
-   
+
    Guarda este contenido en `C:\Users\Usuario\.config\copilot-fs-mcp\config.json`:
 
    ```json
@@ -50,12 +54,12 @@ npx copilot-fs-mcp --help
      "permissions": {
        "allowed": [
          {
-           "path": "C:/Users/Usuario/Documents/mis-proyectos",
+           "path": "C:/Users/Usuario/Documents",
            "operations": ["read", "write", "list", "search"]
          },
          {
            "path": "C:/Users/Usuario/Desktop",
-           "operations": ["read", "list"]
+           "operations": ["read", "list", "search"]
          }
        ],
        "denied": [
@@ -68,11 +72,27 @@ npx copilot-fs-mcp --help
      "security": {
        "maxFileSizeBytes": 5242880,
        "allowedExtensions": [
-         ".ts", ".js", ".jsx", ".tsx",
-         ".md", ".json", ".txt",
-         ".css", ".html", ".scss",
-         ".yml", ".yaml", ".xml",
-         ".py", ".java", ".c", ".cpp"
+         ".ts",
+         ".js",
+         ".jsx",
+         ".tsx",
+         ".md",
+         ".json",
+         ".txt",
+         ".css",
+         ".html",
+         ".scss",
+         ".yml",
+         ".yaml",
+         ".xml",
+         ".py",
+         ".java",
+         ".c",
+         ".cpp",
+         ".go",
+         ".rs",
+         ".php",
+         ".rb"
        ],
        "logAllAccess": true,
        "logPath": "C:/Users/Usuario/.config/copilot-fs-mcp/logs"
@@ -109,7 +129,10 @@ npx copilot-fs-mcp --help
        "servers": {
          "local-filesystem": {
            "command": "copilot-fs-mcp",
-           "args": ["--config", "C:/Users/Usuario/.config/copilot-fs-mcp/config.json"]
+           "args": [
+             "--config",
+             "C:/Users/Usuario/.config/copilot-fs-mcp/config.json"
+           ]
          }
        }
      }
@@ -117,11 +140,13 @@ npx copilot-fs-mcp --help
    ```
 
    **Si instalaste con npm global**, usa solo el comando:
+
    ```json
    "command": "copilot-fs-mcp"
    ```
 
    **Si usas npx**, usa:
+
    ```json
    "command": "npx",
    "args": ["copilot-fs-mcp", "--config", "C:/Users/Usuario/.config/copilot-fs-mcp/config.json"]
@@ -153,36 +178,43 @@ npx copilot-fs-mcp --help
 Una vez configurado, puedes usar estas herramientas desde **GitHub Copilot Chat**:
 
 ### 📖 **read_file** - Leer archivos
+
 ```
 @workspace lee el archivo C:/Users/Usuario/Documents/proyecto/index.js
 ```
 
 ### ✍️ **write_file** - Escribir archivos (con backup automático)
+
 ```
 @workspace crea un archivo README.md en C:/Users/Usuario/Documents/proyecto con el siguiente contenido: ...
 ```
 
 ### 📁 **list_directory** - Listar directorios
+
 ```
 @workspace lista los archivos en C:/Users/Usuario/Documents/proyecto
 ```
 
 ### 🔍 **search_files** - Buscar archivos
+
 ```
 @workspace busca archivos que contengan "function getData" en C:/Users/Usuario/Documents/proyecto
 ```
 
 ### 🔐 **get_permissions** - Ver permisos configurados
+
 ```
 @workspace muestra los permisos actuales del servidor MCP
 ```
 
 ### 💾 **list_backups** - Ver backups disponibles
+
 ```
 @workspace lista los backups de C:/Users/Usuario/Documents/proyecto/index.js
 ```
 
 ### ⏮️ **restore_backup** - Restaurar desde backup
+
 ```
 @workspace restaura el backup más reciente de index.js
 ```
@@ -199,6 +231,7 @@ El servidor crea **backups automáticos** antes de cada modificación:
 - **Limpieza:** Automática de backups antiguos
 
 **Ejemplo:**
+
 ```
 proyecto/
 ├── index.js
@@ -217,6 +250,7 @@ proyecto/
 **Causa:** VS Code no encuentra el ejecutable
 
 **Solución:**
+
 1. Verifica que npm instaló globalmente: `npm list -g copilot-fs-mcp`
 2. Encuentra la ruta del binario: `where copilot-fs-mcp` (Windows) o `which copilot-fs-mcp` (Mac/Linux)
 3. Usa la ruta absoluta en `settings.json`:
@@ -229,6 +263,7 @@ proyecto/
 **Causa:** La ruta no está en `permissions.allowed` o está en `denied`
 
 **Solución:**
+
 1. Edita `config.json`
 2. Agrega la ruta a `permissions.allowed`:
    ```json
@@ -244,6 +279,7 @@ proyecto/
 **Causa:** El archivo excede `maxFileSizeBytes`
 
 **Solución:**
+
 - Aumenta el límite en `config.json`:
   ```json
   "security": {
@@ -256,6 +292,7 @@ proyecto/
 **Causa:** La extensión del archivo no está en `allowedExtensions`
 
 **Solución:**
+
 - Agrega la extensión en `config.json`:
   ```json
   "allowedExtensions": [".ts", ".js", ".py", ".java"]
@@ -301,6 +338,7 @@ npm list -g copilot-fs-mcp
 ```
 
 También puedes eliminar:
+
 - La configuración de VS Code en `settings.json` (sección MCP)
 - El directorio de configuración: `C:\Users\Usuario\.config\copilot-fs-mcp`
 - Los backups en los directorios `.mcp-backups`
@@ -315,9 +353,10 @@ Ahora tienes **Copilot FS MCP** completamente configurado. Puedes:
 ✅ Buscar contenido en tu sistema de archivos  
 ✅ Tener backups automáticos de todas las modificaciones  
 ✅ Auditoría completa de todos los accesos  
-✅ Control granular de permisos  
+✅ Control granular de permisos
 
 **¿Necesitas ayuda?** Consulta:
+
 - [README.md](README.md) - Documentación completa
 - [BACKUPS.md](BACKUPS.md) - Sistema de backups
 - [SECURITY.md](SECURITY.md) - Guía de seguridad
@@ -329,6 +368,7 @@ Ahora tienes **Copilot FS MCP** completamente configurado. Puedes:
 ### Sobre el warning de glob
 
 Si ves este mensaje al instalar:
+
 ```
 npm warn deprecated glob@10.5.0: Old versions of glob are not supported...
 ```
@@ -338,10 +378,12 @@ Es solo una advertencia sobre una dependencia transitiva antigua. No afecta la f
 ### Uso en diferentes sistemas operativos
 
 **Windows:**
+
 - Usa rutas con `/` o `\\`: `C:/Users/Usuario/...` o `C:\\Users\\Usuario\\...`
 - El comando es: `copilot-fs-mcp.cmd` (se puede abreviar a `copilot-fs-mcp`)
 
 **Mac/Linux:**
+
 - Usa rutas Unix: `/home/usuario/...`
 - El comando es: `copilot-fs-mcp`
 - Puedes usar `~` para el directorio home

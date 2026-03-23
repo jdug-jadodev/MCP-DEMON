@@ -1,9 +1,18 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import type { Config } from '../permissions/config-loader.js';
+import { checkPermission } from '../permissions/evaluator.js';
 
-export default async function listDirectoryTool(input: { path: string }) {
+export default async function listDirectoryTool(input: { path: string }, config: Config) {
   if (!input || typeof input.path !== 'string') throw new Error('missing path');
   const resolved = path.resolve(input.path);
+  
+  // Check permissions before listing
+  const permission = await checkPermission(config, resolved, 'list');
+  if (!permission.allowed) {
+    throw new Error(`Access denied: ${permission.reason}`);
+  }
+  
   const entries = await fs.readdir(resolved, { withFileTypes: true });
   const results: any[] = [];
   for (const e of entries) {

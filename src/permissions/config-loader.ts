@@ -2,32 +2,96 @@ import * as os from 'os';
 import * as path from 'path';
 import { promises as fs, watch, FSWatcher } from 'fs';
 import { EventEmitter } from 'events';
+import { z } from 'zod';
 
-export interface PermissionEntry {
-  path: string;
-  operations: Array<'read' | 'write' | 'list' | 'search'>;
+/**
+ * Zod Schema for Permission Entry
+ * Validates that each entry has a valid path and at least one operation
+ */
+const PermissionEntrySchema = z.object({
+  path: z.string().min(1, 'Path cannot be empty'),
+  operations: z.array(z.enum(['read', 'write', 'list', 'search'])).min(1, 'At least one operation must be specified'),
+});
+
+/**
+ * Zod Schema for Security Configuration
+ * Validates all security-related settings
+ */
+const SecurityConfigSchema = z.object({
+  maxFileSizeBytes: z.number().positive('maxFileSizeBytes must be positive'),
+  allowedExtensions: z.array(z.string()),
+  logAllAccess: z.boolean(),
+  logPath: z.string().min(1, 'logPath cannot be empty'),
+});
+
+/**
+ * Zod Schema for Backup Configuration
+ * Validates backup-related settings
+ */
+const BackupConfigSchema = z.object({
+  enabled: z.boolean().default(true),
+  maxBackups: z.number().positive('maxBackups must be positive').default(10),
+  backupDir: z.string().default('.mcp-backups'),
+}).optional();
+
+/**
+ * Zod Schema for Complete Configuration
+ * Validates the entire config.json structure
+ */
+const ConfigSchema = z.object({
+  version: z.string().min(1, 'Version is required'),
+  permissions: z.object({
+    allowed: z.array(PermissionEntrySchema),
+    denied: z.array(z.string()),
+  }),
+  security: SecurityConfigSchema,
+  backup: BackupConfigSchema,
+});
+
+/**
+ * TypeScript types inferred from Zod schemas
+ * These ensure type safety throughout the application
+ */
+export type PermissionEntry = z.infer<typeof PermissionEntrySchema>;
+export type SecurityConfig = z.infer<typeof SecurityConfigSchema>;
+export type BackupConfig = z.infer<typeof BackupConfigSchema>;
+export type Config = z.infer<typeof ConfigSchema>;
+
+/**
+ * Export schemas for external validation if needed
+ */
+export { ConfigSchema, PermissionEntrySchema, SecurityConfigSchema, BackupConfigSchema };
+
+/**
+ * Gets the default config path based on the operating system.
+ * 
+ * @returns Absolute path to config.json
+ * - Windows: %APPDATA%\copilot-fs-mcp\config.json
+ * - macOS/Linux: ~/.config/copilot-fs-mcp/config.json
+ */
+export function getConfigPath(): string {
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+    return path.join(appData, 'copilot-fs-mcp', 'config.json');
+  } else {
+    return path.join(os.homedir(), '.config', 'copilot-fs-mcp', 'config.json');
+  }
 }
 
-export interface SecurityConfig {
-  maxFileSizeBytes: number;
-  allowedExtensions: string[];
-  logAllAccess: boolean;
-  logPath: string;
-}
-
-export interface Config {
-  version: string;
-  permissions: { allowed: PermissionEntry[]; denied: string[] };
-  security: SecurityConfig;
-}
-
+/**
+ * Returns a default configuration with safe defaults.
+ * Used when config file doesn't exist or is invalid.
+ */
 function defaultConfig(): Config {
   return {
     version: '1.0',
-    permissions: { allowed: [], denied: [] },
+    permissions: { 
+      allowed: [], 
+      denied: ['~/.ssh', '~/.aws', '~/.config/secrets'] // Safe defaults
+    },
     security: {
-      maxFileSizeBytes: 5242880,
-      allowedExtensions: ['.ts', '.js', '.md', '.json', '.txt'],
+      maxFileSizeBytes: 5242880, // 5 MB
+      allowedExtensions: ['.ts', '.js', '.md', '.json', '.txt', '.tsx', '.jsx', '.css', '.html', '.yml', '.yaml'],
       logAllAccess: false,
       logPath: path.join(os.homedir(), '.config', 'copilot-fs-mcp', 'logs'),
     },
@@ -35,15 +99,41 @@ function defaultConfig(): Config {
 }
 
 /**
- * Reads config from the given absolute path.
- * Returns default config if file doesn't exist or is invalid.
+ * Reads and validates config from the given absolute path.
+ * Applies Zod schema validation to ensure config integrity.
+ * Returns default config if file doesn't exist.
+ * Throws descriptive error if config is malformed.
+ * 
+ * @param configPath - Absolute path to config.json
+ * @returns Validated Config object
+ * @throws Error with detailed validation errors if config is invalid
  */
 export async function loadConfig(configPath: string): Promise<Config> {
   try {
     const raw = await fs.readFile(configPath, 'utf8');
-    return JSON.parse(raw) as Config;
-  } catch {
-    return defaultConfig();
+    const rawJson = JSON.parse(raw);
+    
+    // Apply Zod validation
+    const result = ConfigSchema.safeParse(rawJson);
+    
+    if (!result.success) {
+      // Format Zod errors into a readable message
+      const errorMessages = result.error.issues.map((err: any) => 
+        `  - ${err.path.join('.')}: ${err.message}`
+      ).join('\n');
+      
+      throw new Error(`Invalid config.json:\n${errorMessages}`);
+    }
+    
+    return result.data;
+  } catch (error) {
+    // If file doesn't exist, return default config
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return defaultConfig();
+    }
+    
+    // Re-throw validation errors and JSON parse errors
+    throw error;
   }
 }
 

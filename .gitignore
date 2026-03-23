@@ -3,3 +3,6 @@ cambios-registro.md
 
 node_modules/
 dist/
+
+# MCP Backups
+.mcp-backups/

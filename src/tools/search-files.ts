@@ -1,9 +1,18 @@
 import * as path from 'path';
 import { glob } from 'glob';
 import { promises as fs } from 'fs';
+import type { Config } from '../permissions/config-loader.js';
+import { checkPermission } from '../permissions/evaluator.js';
 
-export default async function searchFilesTool(input: { rootPath: string; pattern?: string; searchContent?: string }) {
+export default async function searchFilesTool(input: { rootPath: string; pattern?: string; searchContent?: string }, config: Config) {
   const root = path.resolve(input.rootPath || '.');
+  
+  // Check permissions before searching
+  const permission = await checkPermission(config, root, 'search');
+  if (!permission.allowed) {
+    throw new Error(`Access denied: ${permission.reason}`);
+  }
+  
   const pattern = input.pattern || '**/*';
   const matches = await glob(pattern, { cwd: root, absolute: true, nodir: true });
   let results = matches.slice(0, 100);

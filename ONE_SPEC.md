@@ -1,149 +1,331 @@
 # One Spec (Root Spec)
+## FASE 2 — Motor de Permisos y Seguridad
+
+---
 
 ## Objetivo
 
-Objetivo: Definir de forma práctica y reproducible la implementación completa de la Fase 1 "Núcleo funcional del servidor MCP" del proyecto `copilot-fs-mcp`.
+Implementar un motor de permisos completo y robusto que garantice que **ninguna operación de sistema de archivos** llegue a ejecutarse sin haber sido validada contra un conjunto de reglas de seguridad estrictas y configurables. El motor debe:
 
-Esta especificación sirve como manual operativo para que un desarrollador pueda implementar, compilar y verificar el servicio MCP mínimo que se ejecuta por stdio y expone las herramientas básicas (`read_file`, `write_file`, `list_directory`, `search_files`, `get_permissions`).
+- **Proteger contra path traversal** y otros ataques de manipulación de rutas
+- **Validar permisos granulares** basados en operación (read, write, list, search) y ruta
+- **Aplicar límites de seguridad** (tamaño de archivo, extensiones permitidas)
+- **Proporcionar razones claras** de denegación para auditoría y debugging
+- **Mantener alto rendimiento** sin bloquear el proceso principal
 
-Resultado esperado al finalizar la Fase 1:
-- Proyecto TypeScript que compila sin errores.
-- Binario ejecutable `copilot-fs-mcp` que arranca un servidor MCP por stdio.
-- Las 5 herramientas básicas implementadas y verificadas con un cliente MCP de prueba.
+**Meta cuantificable**: 100% de protección contra path traversal, cobertura de tests >95% en el motor de permisos, 0 vulnerabilidades críticas detectadas por npm audit.
+
+---
 
 ## Alcance / No alcance
 
-Incluye (alcance):
-- Inicializar el repositorio y configuración TypeScript (`tsconfig.json`).
-- Instalar dependencias de desarrollo y runtime listadas en el plan.
-- Implementar `src/index.ts` como punto de entrada que crea el servidor y transporte stdio.
-- Implementar `src/server.ts` que registra las tools y enruta llamadas a `src/tools/*`.
-- Implementar `src/tools/read-file.ts`, `write-file.ts`, `list-directory.ts`, `search-files.ts` y `get-permissions` (versión básica).
-- Crear `src/permissions/config-loader.ts` que lee (si existe) `config.json` desde la ruta por defecto.
-- Scripts NPM para `build`, `start`, `dev`, `lint`.
-- Comprobar arranque y operación básica desde VSCode usando `npm link` y la configuración `mcp` mostrada en el plan.
+### ✅ **Dentro del Alcance** (DEBE implementarse)
 
-No incluye (fuera de alcance para Fase 1):
-- Motor de permisos completo (evaluador de reglas) — se añadirá en Fase 2.
-- Auditoría y logs rotados (Fase 4).
-- CLI interactiva avanzada (Fase 3).
-- Publicación en npm y CI/CD (Fase 5).
+1. **Módulo de Resolución de Rutas** (`path-resolver.ts`)
+   - Expansión de `~` al directorio home del usuario
+   - Normalización de rutas absolutas con `path.resolve()`
+   - Validación anti-path-traversal que impida salir de rutas base autorizadas
+   - Compatibilidad multiplataforma (Windows, macOS, Linux)
+
+2. **Validación de Esquema de Configuración**
+   - Esquema Zod completo para `config.json`
+   - Validación en tiempo de carga con mensajes de error descriptivos
+   - Tipos TypeScript inferidos automáticamente del esquema
+
+3. **Motor de Evaluación de Permisos** (`evaluator.ts`)
+   - 6 reglas de evaluación en orden estricto (ver sección Principios)
+   - Estructura de resultado tipada: `{ allowed: true } | { allowed: false; reason: string }`
+   - Manejo de casos edge: archivos inexistentes, stat failures, extensiones sin punto
+
+4. **Suite de Tests Exhaustiva**
+   - Tests unitarios para cada regla del motor
+   - Tests de path traversal (10+ variantes)
+   - Tests de integración con configuraciones reales
+   - Objetivo: >95% cobertura del código del motor
+
+5. **Integración en Herramientas Existentes**
+### ❌ **Fuera del Alcance** (NO se implementa en esta fase)
+
+- Logs de auditoría (Fase 4)
+
+---
 
 ## Definiciones (lenguaje de dominio)
+- `read`: Lectura de contenido de archivo
+- `write`: Escritura o creación de archivo
 
-- MCP: Model Context Protocol — protocolo para que el agente de Copilot llame herramientas externas.
-- Tool / herramienta: función expuesta por el servidor MCP (ej. `read_file`).
-- Transporte stdio: comunicación por entrada/salida estándar entre IDE y proceso local.
-- Config: archivo `config.json` del usuario con permisos y seguridad (solo lectura en Fase 1).
+### **Entrada de Permiso (PermissionEntry)**
+{ path: string, operations: Operation[] }
+```
+1. Expansión de `~` → directorio home
+2. Expansión de variables de entorno (opcional)
+La ruta raíz de una `PermissionEntry.path`. Durante evaluación, la ruta solicitada debe estar contenida dentro de la ruta base.
 
-## Principios / Reglas no negociables
+Ataque que utiliza secuencias como `../` o `..\` para escapar de una ruta autorizada hacia zonas protegidas del filesystem (ej: `~/projects/../.ssh/id_rsa`).
 
-- Local-first: el servidor corre 100% local, sin comunicación de red externa en Fase 1.
-- Menor superficie de ataque: en Fase 1 no se exponen puertos ni credenciales.
-- Fail-safe: ante error, el servidor debe devolver un error descriptivo al cliente MCP, no colapsar.
-- Reproducible: todos los pasos para levantar el servicio deben ser explícitos y ejecutables.
-- Tipado estricto: TypeScript con `strict` habilitado y esquemas para entradas/outputs.
+- `path_not_allowed`: La ruta no está bajo ninguna entrada de `allowed`
+- `operation_not_allowed`: La operación no está en el array de operaciones permitidas
+- `file_too_large`: El archivo excede `maxFileSizeBytes`
+- macOS/Linux: `~/.config/copilot-fs-mcp/config.json`
+
+Estructura:
+    ],
+    "denied": ["~/.ssh", "~/.aws", "~/.config/secrets"]
+  },
+  }
+```
+
+### **P1. Deny by Default (Denegación por Defecto)**
+
+### **P2. Explicit Denial Trumps All (Denegación Explícita Prima)**
+Si una ruta está en `denied`, DEBE ser denegada **incluso si también está en `allowed`**. La denegación tiene prioridad absoluta.
+### **P3. Orden de Evaluación Estricto (6 Reglas)**
+El motor DEBE evaluar en este orden, deteniendo en la primera que deniegue:
+
+1. **Regla de Denegación Explícita**: Si `resolvedPath` empieza con alguna ruta en `denied` → `denied_path`
+2. **Regla de Ruta No Autorizada**: Si `resolvedPath` no está bajo ninguna ruta en `allowed` → `path_not_allowed`
+3. **Regla de Operación No Permitida**: Si `operation` no está en el array de la entrada `allowed` correspondiente → `operation_not_allowed`
+4. **Regla de Tamaño de Archivo**: Si la operación es `read` o `write` Y el archivo existe Y su tamaño > `maxFileSizeBytes` → `file_too_large`
+### **P4. Path Traversal = Denegación Automática**
+Cualquier ruta que, tras resolución canónica, no esté contenida dentro de su ruta base DEBE ser denegada. La función `isPathSafe(requested, base)` DEBE retornar `false` si:
+- `path.resolve(requested)` no comienza con `path.resolve(base) + path.sep`
+- O si se detecta manipulación de `../` que intente escapar
+
+### **P5. No Excepciones en Runtime**
+El motor NO DEBE lanzar excepciones no controladas. Si ocurre un error (ej: `stat()` falla), el motor DEBE:
+- Para errores de `stat()`: loggearlos y proceder (no denegar por error de sistema)
+- Para errores críticos (config corrupta): devolver denegación con razón `config_error`
+
+### **P6. Configuración Inmutable Durante Evaluación**
+El objeto `Config` pasado al motor DEBE ser tratado como inmutable (readonly). El motor NO DEBE modificar la configuración.
+### **P7. Zero Trust en Parámetros de Entrada**
+Toda ruta recibida de una tool MCP DEBE ser tratada como **no confiable** hasta ser validada. No se asume que el cliente ha sanitizado las entradas.
+
+### **P8. Tipo de Retorno Consistente**
+El motor SIEMPRE devuelve un objeto `PermissionResult`:
+  | { allowed: true }
+  | { allowed: false; reason: string };
+```
+Nunca `undefined`, nunca `null`, nunca excepciones para flujo normal.
+
+---
 
 ## Límites
 
-- Fase 1 no implementa validaciones de permisos (solo lectura de config); las herramientas acceden directamente al FS.
-- No se maneja rotación de logs ni auditoría.
-- No se publica el paquete en npm ni se configura CI/CD en esta fase.
+|--------|-------|---------------|
+| Tamaño máximo de archivo por defecto | 5 MB (5242880 bytes) | Evitar sobrecarga de memoria en operaciones síncronas de lectura |
+| Número máximo de entradas en `allowed` | 1000 | Evitar degradación de performance en O(n) para evaluación |
+| Profundidad máxima de path | 4096 caracteres | Límite del sistema operativo (Windows MAX_PATH extendido) |
+| Tiempo máximo de evaluación | 50 ms | No bloquear el event loop de Node.js |
+| Extensiones permitidas por defecto | 20 | Balance entre flexibilidad y seguridad |
+
+### **Límites de Alcance**
+
+- **NO se valida contenido**: El motor verifica permisos de acceso, NO el contenido de los archivos (sin escaneo de malware, secrets, etc.)
+- **NO se controla frecuencia**: No hay rate limiting en esta fase (ver Fase 4 para auditoría)
+- **NO se gestionan usuarios**: Es un servidor local MCP de un solo usuario (el que ejecuta VSCode)
+- **NO se detectan symlinks maliciosos**: Los symlinks se resuelven por `path.resolve()`, pero no se valida su destino como vector de ataque
+
+### **Límites de Compatibilidad**
+- **Node.js >= 18.0.0** requerido (para `fs.promises` y `path.resolve` con soporte completo)
+- **Windows**: Paths UNC (`\\server\share`) NO están soportados en esta fase
+- **macOS/Linux**: Extensiones case-sensitive (`.txt` ≠ `.TXT`), pero `allowedExtensions` es case-insensitive
+
+---
 
 ## Eventos y estados (visión raíz)
+### **Estados del Motor de Permisos**
 
-Eventos clave que el servidor debe exponer y/o manejar:
-- `startup` — proceso lanzado, servidor inicializando.
-- `ready` — servidor conectado al transporte stdio y listo para recibir requests.
-- `tool.call` — llegada de una llamada a una tool (contiene tool name y payload).
-- `tool.response` — respuesta de ejecución o error devuelto al cliente MCP.
-- `error.unhandled` — excepción global capturada; el proceso debe emitir un error y seguir vivo si es posible.
-- `shutdown` — cierre ordenado del proceso (e.g., SIGINT).
+```
+┌─────────────────┐
+│  UNINITIALIZED  │ → Config no cargado
+└────────┬────────┘
+         ▼
+┌─────────────────┐
+│  CONFIG_LOADED  │ → Config válido en memoria
+└────────┬────────┘
+         │ checkPermission(path, op)
+┌─────────────────┐
+│   EVALUATING    │ → Aplicando 6 reglas
+└────────┬────────┘
+         │
+         ├──► { allowed: true }  ──► PERMITIDO → Tool ejecuta operación
+         │
+         └──► { allowed: false } ──► DENEGADO → Tool devuelve error MCP
+```
 
-Estados del servidor:
-- `initializing` → `ready` → `running` → `shutting_down` → `stopped`.
+1. **ConfigLoaded** (Fase 2.2)
+   - Emitido cuando `config.json` se carga exitosamente
+   - Consumidores: `server.ts` para actualizar la instancia global
+
+2. **PermissionDenied** (Fase 2.3)
+   - Emitido cuando el motor deniega una operación
+   - Payload: `{ path: string, operation: Operation, reason: string, timestamp: ISO8601 }`
+
+3. **PermissionGranted** (Fase 2.3)
+   - Emitido cuando el motor permite una operación
+
+4. **PathTraversalDetected** (Fase 2.1)
+   - Emitido cuando se detecta un intento de path traversal
+
+5. **ConfigValidationError** (Fase 2.2)
+   - Emitido cuando `config.json` no pasa validación Zod
+
+### **Transiciones de Estado de Archivos**
+
+Archivo no existe → write(permitido) → Archivo existe → read(permitido) → Contenido leído
+                                                      ↘
+                                                        write(denegado) → Error MCP
+```
+
+---
 
 ## Criterios de aceptación (root)
 
-Lista de criterios concretos para considerar completada la Fase 1:
+### **CA-2.1: Resolución de Rutas**
 
-1) Compilación TypeScript
-- Ejecutar:  
-	```bash
-	npm install
-	npm run build
-	npx tsc --noEmit
-	```
-- Criterio: `npx tsc --noEmit` finaliza sin errores.
+- [ ] **CA-2.1.6**: `isPathSafe("C:\Users\user\projects\file.txt", "C:\Users\user\projects")` devuelve `true` en Windows
+- [ ] **CA-2.1.7**: Tests unitarios de `isPathSafe` cubren 10+ casos de path traversal
+- [ ] **CA-2.1.8**: Rutas con espacios, acentos y caracteres Unicode se resuelven correctamente
+- [ ] **CA-2.2.2**: `loadConfig()` con un JSON sin el campo `version` lanza `ZodError` con mensaje descriptivo
+- [ ] **CA-2.2.4**: `loadConfig()` con `maxFileSizeBytes: -1` lanza error de validación (debe ser positivo)
+- [ ] **CA-2.2.5**: `loadConfig()` con un archivo inexistente devuelve la configuración por defecto sin lanzar
 
-2) Punto de entrada y transporte
-- `src/index.ts` crea una instancia del servidor MCP y usa transporte stdio.
-- Ejecutar en modo desarrollo (sin vincular aún):
-	```bash
-	npm run build
-	node dist/index.js
-	```
-- Criterio: el proceso arranca y permanece en espera (escucha stdin). Logs console indican `ready`.
+### **CA-2.3: Motor de Evaluación**
 
-3) Registro de herramientas
-- `src/server.ts` registra 5 tools con schemas mínimos.
-- Criterio: un cliente MCP de prueba puede solicitar la lista de herramientas y recibe los 5 nombres.
+**Regla 1: Denegación Explícita**
+- [ ] **CA-2.3.1**: Una ruta en `denied` devuelve `{ allowed: false, reason: "denied_path" }`
+- [ ] **CA-2.3.2**: Una ruta en `denied` Y en `allowed` devuelve denegado (denegación tiene prioridad)
+- [ ] **CA-2.3.3**: Una ruta hija de una entrada en `denied` también es denegada (ej: `~/.ssh/keys/id_rsa` si `~/.ssh` está denegado)
 
-4) Implementación funcional de tools
-- `read_file`: lee archivo y devuelve contenido (utf-8).
-- `write_file`: escribe archivo creando directorios intermedios si es necesario.
-- `list_directory`: lista entradas con tipo, tamaño y mtime.
-- `search_files`: busca por patrón (usa `glob`) y opcionalmente filtra por contenido.
-- `get_permissions`: devuelve `{ allowed: [], denied: [] }` en Fase 1.
-- Criterio: invocar cada tool desde un cliente de pruebas (o cliente MCPE del SDK) devuelve resultado válido o error manejado.
+**Regla 2: Ruta No Autorizada**
+- [ ] **CA-2.3.4**: Una ruta fuera de todas las entradas `allowed` devuelve `{ allowed: false, reason: "path_not_allowed" }`
+- [ ] **CA-2.3.5**: Path traversal que intente salir de una ruta `allowed` devuelve `path_not_allowed`
 
-5) Integración con VSCode (verificación manual)
-- `npm link` para exponer el binario `copilot-fs-mcp`.
-- Añadir configuración `mcp.servers.local-filesystem.command = "copilot-fs-mcp"` en `settings.json`.
-- Criterio: GitHub Copilot Agent dentro de VSCode puede listar herramientas y ejecutar `list_directory` con éxito.
+**Regla 3: Operación No Permitida**
+- [ ] **CA-2.3.6**: Una ruta permitida con `operations: ["read"]` devuelve denegado para `operation: "write"` con `reason: "operation_not_allowed"`
+- [ ] **CA-2.3.7**: Una ruta con `operations: ["read", "list"]` permite ambas operaciones correctamente
 
-6) Calidad mínima de proyecto
-- ESLint y Prettier configurados; `npm run lint` ejecutable.
-- `package.json` contiene scripts `build`, `dev`, `start`, `lint`.
-- Criterio: `npm run lint` no produce errores bloqueantes en archivos modificados.
+**Regla 4: Tamaño de Archivo**
+- [ ] **CA-2.3.8**: Un archivo de 6 MB con `maxFileSizeBytes: 5242880` devuelve `{ allowed: false, reason: "file_too_large" }`
+- [ ] **CA-2.3.9**: Un archivo de 4 MB con el mismo límite devuelve permitido
+- [ ] **CA-2.3.10**: Una operación `write` en un archivo inexistente (creación) NO aplica Regla 4 (no hay archivo para medir)
+- [ ] **CA-2.3.11**: Una operación `list` NO aplica Regla 4
 
-Aceptación final: Todos los criterios 1..6 verificados manualmente o con tests básicos.
+**Regla 5: Extensión**
+- [ ] **CA-2.3.12**: Un archivo `.exe` con `allowedExtensions: [".txt", ".js"]` devuelve `{ allowed: false, reason: "extension_not_allowed" }`
+- [ ] **CA-2.3.13**: Un archivo `.TXT` con `allowedExtensions: [".txt"]` es permitido (case-insensitive)
+- [ ] **CA-2.3.14**: Un archivo sin extensión (ej: `Makefile`) NO aplica Regla 5 (se asume permitido si no hay extensión)
+- [ ] **CA-2.3.15**: Una operación `search` NO aplica Regla 5
 
-Plan de verificación (pasos concretos):
-1. Clonar o estar en el directorio del proyecto.
-2. Ejecutar `npm ci` o `npm install`.
-3. Ejecutar `npm run build`.
-4. Ejecutar `node dist/index.js` y verificar log `ready`.
-5. Desde un cliente MCP de prueba (puede ser un script Node usando `@modelcontextprotocol/sdk`) solicitar `tools/list` y probar `read_file` con un archivo de prueba.
+**Regla 6: Permitir**
+- [ ] **CA-2.3.16**: Una ruta válida con operación permitida, tamaño y extensión correctos devuelve `{ allowed: true }`
+
+**Casos Edge**
+- [ ] **CA-2.3.17**: Un error de `stat()` en un archivo existente no crashea el motor (loguea y procede)
+- [ ] **CA-2.3.18**: Una config con `allowed: []` deniega todas las operaciones
+- [ ] **CA-2.3.19**: Una ruta exactamente igual a la base (ej: `~/projects` == `~/projects`) es permitida
+
+### **CA-2.4: Cobertura de Tests**
+
+- [ ] **CA-2.4.1**: Suite de tests en `tests/permissions/evaluator.test.ts` existe y ejecuta
+- [ ] **CA-2.4.2**: Cobertura del módulo `evaluator.ts` >= 95%
+- [ ] **CA-2.4.3**: Cobertura del módulo `path-resolver.ts` >= 95%
+- [ ] **CA-2.4.4**: Al menos 10 tests de path traversal con variantes: `../`, `..\`, codificación URL, double encoding
+- [ ] **CA-2.4.5**: Tests parametrizados para diferentes OS (Windows, Unix)
+- [ ] **CA-2.4.6**: Todos los tests pasan en CI/CD (GitHub Actions con Node 18 y 20)
+
+### **CA-2.5: Integración en Tools**
+
+- [ ] **CA-2.5.1**: `read-file.ts` llama a `checkPermission` ANTES de `fs.promises.readFile()`
+- [ ] **CA-2.5.2**: Si `checkPermission` retorna denegado, la tool devuelve un error MCP con el `reason`
+- [ ] **CA-2.5.3**: Las 5 tools (read, write, list, search, get_permissions) están integradas con el motor
+- [ ] **CA-2.5.4**: `get_permissions` devuelve el objeto `Config` completo (no un objeto vacío como en Fase 1)
+- [ ] **CA-2.5.5**: Los mensajes de error MCP incluyen el `reason` de denegación (ej: `"Access denied: denied_path"`)
+- [ ] **CA-2.5.6**: Ninguna tool ejecuta operaciones de filesystem si el permiso es denegado
+
+### **CA-2.6: Pruebas de Integración de Seguridad**
+
+- [ ] **CA-2.6.1**: **Test de lectura permitida**: Leer un archivo en una ruta `allowed` con operación `read` → éxito
+- [ ] **CA-2.6.2**: **Test de denied explícito**: Intentar leer `~/.ssh/id_rsa` (en `denied`) → error con `denied_path`
+- [ ] **CA-2.6.3**: **Test de path traversal**: Intentar leer `~/projects/../.ssh/id_rsa` → error (no permite salir de `~/projects`)
+- [ ] **CA-2.6.4**: **Test de operación no permitida**: Intentar escribir en una ruta marcada solo como `read` → error con `operation_not_allowed`
+- [ ] **CA-2.6.5**: **Test de extensión prohibida**: Intentar leer un archivo `.exe` con `allowedExtensions` que no lo incluye → error con `extension_not_allowed`
+
+---
 
 ## Trazabilidad
-**Mapeo de artefactos y tareas (Fase 1) con referencias al `work-plan.md`:**
 
-- `src/index.ts`  ← (Work-plan 1.3)
-- `src/server.ts` ← (Work-plan 1.4)
-- `src/tools/read-file.ts` ← (Work-plan 1.5.1)
-- `src/tools/write-file.ts` ← (Work-plan 1.5.2)
-- `src/tools/list-directory.ts` ← (Work-plan 1.5.3)
-- `src/tools/search-files.ts` ← (Work-plan 1.5.4)
-- `src/tools/get-permissions.ts` ← (Work-plan 1.5.5)
-- `src/permissions/config-loader.ts` ← (Work-plan 1.6)
-- `package.json` scripts ← (Work-plan 1.2, 1.7)
+### **Mapeo: Tareas del Plan → Componentes → Criterios de Aceptación**
 
-Cada artefacto tiene criterios de aceptación ya definidos en `work-plan.md` (ver las tareas 1.1..1.7). Use esos criterios para validar la entrega.
+| Tarea del work-plan.md | Componente de Código | Criterios de Aceptación Relacionados |
+|-------------------------|----------------------|--------------------------------------|
+| 2.1 - Resolución de rutas | `src/permissions/path-resolver.ts` | CA-2.1.1 a CA-2.1.8 |
+| 2.2 - Validación de Config | `src/permissions/config-loader.ts` (Zod) | CA-2.2.1 a CA-2.2.6 |
+| 2.3 - Motor de evaluación | `src/permissions/evaluator.ts` | CA-2.3.1 a CA-2.3.19 |
+| 2.4 - Tests exhaustivos | `tests/permissions/*.test.ts` | CA-2.4.1 a CA-2.4.6 |
+| 2.5 - Integración en tools | `src/tools/*.ts` + `src/server.ts` | CA-2.5.1 a CA-2.5.6 |
+| 2.6 - Prueba de integración | `tests/integration/security.test.ts` | CA-2.6.1 a CA-2.6.5 |
 
-Notas operativas y recomendaciones:
-- Mantener `strict` en `tsconfig.json` desde el inicio para evitar deuda técnica.
-- Priorizar tests unitarios mínimos para `read_file` y `list_directory` (leer archivos temporales creados en `tests/fixtures`).
-- Evitar cambiar la API de las tools entre Fase 1 y Fase 2; la seguridad debe implementarse como una capa previa al acceso al FS, no en cada tool por separado.
+### **Trazabilidad Inversa: Principios → Implementación**
 
-Responsables sugeridos:
-- Implementación inicial: desarrollador backend con conocimiento de Node.js y TypeScript.
-- Revisión y pruebas: compañero con experiencia en seguridad de archivos (para la siguiente fase).
+| Principio | Archivo de Código | Línea/Función Clave |
+|-----------|-------------------|---------------------|
+| P1 - Deny by Default | `evaluator.ts` | `checkPermission()` - Regla 2 |
+| P2 - Explicit Denial Trumps All | `evaluator.ts` | `checkPermission()` - Regla 1 (se evalúa primero) |
+| P3 - Orden Estricto de 6 Reglas | `evaluator.ts` | `checkPermission()` - estructura if/else secuencial |
+| P4 - Path Traversal = Denegación | `path-resolver.ts` | `isPathSafe()` |
+| P5 - No Excepciones en Runtime | `evaluator.ts` | Todos los bloques try/catch, manejo de errores de `stat()` |
+| P6 - Config Inmutable | `evaluator.ts` | Parámetro `config: Readonly<Config>` |
+| P7 - Zero Trust | `src/tools/*.ts` | Todas las tools llaman a `checkPermission()` antes de operar |
+| P8 - Tipo de Retorno Consistente | `evaluator.ts` | Tipo `PermissionResult` |
 
-Riesgos y mitigaciones:
-- Riesgo: Exposición accidental de rutas sensibles si se conecta a un cliente no confiable — Mitigación: restringir transporte a stdio (no iniciar HTTP) y añadir logs de acceso en próximas fases.
-- Riesgo: errores de serialización/protocolo MCP — Mitigación: usar el SDK oficial `@modelcontextprotocol/sdk` para conexión y pruebas.
+### **Matriz de Riesgos de Seguridad**
 
-***
-Especificación Fase 1 completada: seguir los pasos listados en "Criterios de aceptación" y aplicar la Fase 2 para añadir seguridad y auditoría.
+| Riesgo | Mitigación | Componente | CA de Validación |
+|--------|------------|------------|------------------|
+| Path Traversal (`../`) | `isPathSafe()` valida que resolved path esté bajo base | `path-resolver.ts` | CA-2.1.5, CA-2.3.5, CA-2.6.3 |
+| Bypass de denegación | `denied` se evalúa primero en el motor | `evaluator.ts` | CA-2.3.2, CA-2.6.2 |
+| Escalación de privilegios | Operaciones validadas individualmente por ruta | `evaluator.ts` | CA-2.3.6, CA-2.6.4 |
+| Acceso a archivos sensibles | Rutas críticas (`~/.ssh`) en `denied` por defecto | `config-loader.ts` | CA-2.6.2 |
+| DoS por archivo gigante | Límite `maxFileSizeBytes` aplicado en Regla 4 | `evaluator.ts` | CA-2.3.8 |
+| Inyección de código | Extensiones peligrosas (`.exe`, `.sh`) excluidas por defecto | `config-loader.ts` | CA-2.3.12, CA-2.6.5 |
 
+### **Dependencias entre Módulos**
+
+```
+config-loader.ts (Zod schema)
+       ↓ provee Config
+path-resolver.ts (expandHome, isPathSafe)
+       ↓ usa para resolver/validar rutas
+evaluator.ts (checkPermission)
+       ↓ consume Config y path-resolver
+src/tools/*.ts (read, write, list, etc.)
+       ↓ llaman a evaluator antes de operar
+server.ts (MCP request handlers)
+       ↓ orquestan tools con config cargado
+```
+
+### **Documentación de Referencia**
+
+- **ONE_SPEC (este documento)**: Especificación raíz de Fase 2
+- **work-plan.md**: Plan de tareas detallado (Fase 2 completa)
+- **README.md**: Documentación pública del motor de permisos (Fase 5)
+- **SECURITY.md**: Modelo de amenazas y mejores prácticas (Fase 5)
+
+---
+
+## Resumen Ejecutivo de Fase 2
+
+**Duración estimada**: 1 semana (40 horas)
+
+**Entregables clave**:
+1. Motor de permisos operativo con 6 reglas de validación
+2. Protección completa contra path traversal
+3. 95% de cobertura de tests en componentes críticos
+4. Integración en todas las tools existentes de MCP
+5. Archivo de configuración validado con Zod
+
+**Criterio de éxito final**: Ejecutar los 5 tests de CA-2.6 (integración de seguridad) y que todos pasen sin fallos.
+
+**Próximos pasos post-Fase 2**: Fase 3 (CLI de configuración interactiva) para facilitar la gestión de permisos sin editar JSON manualmente.

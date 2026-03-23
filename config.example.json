@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "permissions": {
+    "allowed": [
+      {
+        "path": "C:/Users/Usuario/Documents/proyecto",
+        "operations": ["read", "write", "list", "search"]
+      }
+    ],
+    "denied": [
+      "~/.ssh",
+      "~/.aws",
+      "~/.config/secrets"
+    ]
+  },
+  "security": {
+    "maxFileSizeBytes": 5242880,
+    "allowedExtensions": [
+      ".ts",
+      ".js",
+      ".jsx",
+      ".tsx",
+      ".md",
+      ".json",
+      ".txt",
+      ".css",
+      ".html",
+      ".yml",
+      ".yaml"
+    ],
+    "logAllAccess": true,
+    "logPath": "C:/Users/Usuario/.config/copilot-fs-mcp/logs"
+  },
+  "backup": {
+    "enabled": true,
+    "maxBackups": 10,
+    "backupDir": ".mcp-backups"
+  }
+}

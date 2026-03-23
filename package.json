@@ -1,0 +1,45 @@
+{
+  "name": "copilot-fs-mcp",
+  "version": "0.1.0",
+  "description": "Local MCP server for GitHub Copilot filesystem access (Fase 1)",
+  "main": "dist/index.js",
+  "bin": {
+    "copilot-fs-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint 'src/**/*.{ts,js}' --ext .ts",
+    "test": "vitest",
+    "prepare": "npm run build"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "copilot",
+    "filesystem"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/glob": "^8.0.0",
+    "@types/node": "^18.19.130",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.1",
+    "ts-node-dev": "^2.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "commander": "^14.0.3",
+    "glob": "^10.5.0",
+    "inquirer": "^13.3.2",
+    "zod": "^4.3.6"
+  }
+}

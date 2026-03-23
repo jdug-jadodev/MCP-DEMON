@@ -2,15 +2,6 @@
   "name": "copilot-fs-mcp",
   "version": "1.0.0",
   "description": "Secure MCP server for controlled filesystem access from GitHub Copilot with automatic backups",
-  "author": "Tu Nombre <tu@email.com>",
-  "homepage": "https://github.com/tu-usuario/copilot-fs-mcp#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/tu-usuario/copilot-fs-mcp.git"
-  },
-  "bugs": {
-    "url": "https://github.com/tu-usuario/copilot-fs-mcp/issues"
-  },
   "main": "dist/index.js",
   "bin": {
     "copilot-fs-mcp": "dist/index.js"
@@ -28,6 +19,7 @@
     "dist/",
     "README.md",
     "LICENSE",
+    "SECURITY.md",
     "BACKUPS.md",
     "config.example.json"
   ],
@@ -47,12 +39,19 @@
     "permissions"
   ],
   "license": "MIT",
+  "author": "Tu Nombre <tu@email.com>",
+  "homepage": "https://github.com/tu-usuario/copilot-fs-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tu-usuario/copilot-fs-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tu-usuario/copilot-fs-mcp/issues"
+  },
   "devDependencies": {
     "@types/glob": "^8.0.0",
     "@types/node": "^18.19.130",
     "@vitest/coverage-v8": "^4.1.1",
-    "eslint": "^10.1.0",
-    "globals": "^17.4.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.0.0",

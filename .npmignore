@@ -6,6 +6,7 @@ tests/
 .eslintrc.json
 .prettierrc
 tsconfig.json
+eslint.config.mjs
 
 # Archivos de proyecto internos
 cambios-registro.md
@@ -20,11 +21,8 @@ coverage/
 *.test.ts
 
 # CI/CD
-github/
 .github/
 
 # Git
 .git/
 .gitignore
-
-eslint.config.js

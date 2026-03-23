@@ -127,7 +127,7 @@ npx copilot-fs-mcp --help
    {
      "mcp": {
        "servers": {
-         "local-filesystem": {
+         "demon-server": {
            "command": "copilot-fs-mcp",
            "args": [
              "--config",

@@ -15,30 +15,51 @@ export interface PdfParseResult {
   truncated: boolean;
 }
 
+/**
+ * pdf-parse v2.x ships a class-based API.
+ * The module exports { PDFParse, ... } — NOT a callable function.
+ * Buffer is passed via the constructor option `data`.
+ * Pages are limited with `{ first: N }` (v1 used `{ max: N }`).
+ */
 export async function parsePdf(buf: Buffer, options?: ParseableConfig): Promise<PdfParseResult> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse: (buf: Buffer, opts?: { max?: number }) => Promise<{ numpages: number; text: string; info: Record<string, unknown> }> = require('pdf-parse');
+  const { PDFParse } = require('pdf-parse') as { PDFParse: new (opts: Record<string, unknown>) => any };
   const maxPages = options?.maxPdfPages ?? 50;
 
-  const data = await pdfParse(buf, {
-    max: maxPages,
-  });
+  // --- Extract text (limited to first maxPages pages) ---
+  const textParser = new PDFParse({ data: buf, verbosity: 0 });
+  const textResult = await textParser.getText({ first: maxPages }) as {
+    total: number;
+    text: string;
+    pages: Array<{ text: string; num: number }>;
+  };
 
-  const truncated = data.numpages > maxPages;
+  const totalPages: number = textResult.total;
+  const truncated = totalPages > maxPages;
+
+  // --- Extract metadata (use a fresh instance to avoid page-cleanup side effects) ---
+  let rawInfo: Record<string, unknown> = {};
+  try {
+    const infoParser = new PDFParse({ data: buf, verbosity: 0 });
+    const infoResult = await infoParser.getInfo() as { info?: Record<string, unknown> };
+    rawInfo = infoResult?.info ?? {};
+  } catch {
+    // Metadata is best-effort; never block text extraction
+  }
 
   const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
   return {
     format: 'pdf',
-    pages: data.numpages,
-    text: data.text?.trim() ?? '',
+    pages: totalPages,
+    text: textResult.text?.trim() ?? '',
     metadata: {
-      title:        str(data.info?.Title),
-      author:       str(data.info?.Author),
-      subject:      str(data.info?.Subject),
-      creator:      str(data.info?.Creator),
-      producer:     str(data.info?.Producer),
-      creationDate: str(data.info?.CreationDate),
+      title:        str(rawInfo?.Title),
+      author:       str(rawInfo?.Author),
+      subject:      str(rawInfo?.Subject),
+      creator:      str(rawInfo?.Creator),
+      producer:     str(rawInfo?.Producer),
+      creationDate: str(rawInfo?.CreationDate),
     },
     truncated,
   };

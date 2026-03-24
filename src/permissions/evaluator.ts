@@ -115,10 +115,11 @@ export async function checkPermission(
       // If file has an extension, it must be in the allowed list
       if (ext) {
         const allowedExtensions = config.security.allowedExtensions.map(e => e.toLowerCase());
-        
-        if (!allowedExtensions.includes(ext)) {
-          return { allowed: false, reason: DenialReasons.EXTENSION_NOT_ALLOWED };
-        }
+
+          // Support wildcard '*' to allow any extension when explicitly configured
+          if (!(allowedExtensions.includes('*') || allowedExtensions.includes(ext))) {
+            return { allowed: false, reason: DenialReasons.EXTENSION_NOT_ALLOWED };
+          }
       }
       // If no extension, we allow it (e.g., Makefile, README)
     }

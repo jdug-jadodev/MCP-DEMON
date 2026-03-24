@@ -20,6 +20,7 @@ const PermissionEntrySchema = z.object({
 const SecurityConfigSchema = z.object({
   maxFileSizeBytes: z.number().positive('maxFileSizeBytes must be positive'),
   allowedExtensions: z.array(z.string()),
+  binaryExtensions: z.array(z.string()).optional(),
   logAllAccess: z.boolean(),
   logPath: z.string().min(1, 'logPath cannot be empty'),
 });
@@ -92,6 +93,7 @@ function defaultConfig(): Config {
     security: {
       maxFileSizeBytes: 5242880, // 5 MB
       allowedExtensions: ['.ts', '.js', '.md', '.json', '.txt', '.tsx', '.jsx', '.css', '.html', '.yml', '.yaml'],
+      binaryExtensions: [],
       logAllAccess: false,
       logPath: path.join(os.homedir(), '.config', 'copilot-fs-mcp', 'logs'),
     },

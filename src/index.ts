@@ -6,6 +6,7 @@ import listDirectoryTool from './tools/list-directory';
 import searchFilesTool from './tools/search-files';
 import getPermissionsTool from './tools/get-permissions';
 import { listBackupsTool, restoreBackupTool } from './tools/backup-tools';
+import extractTextTool from './tools/extract-text';
 import { ConfigWatcher, type Config } from './permissions/config-loader';
 import { configureLogger, info, warn } from './utils/logger';
 
@@ -84,6 +85,33 @@ async function main() {
   },
     'Restore a file from a backup (default: most recent)',
     { type: 'object', properties: { path: { type: 'string', description: 'Absolute path to the file' }, backupIndex: { type: 'number', description: 'Index of backup to restore (0 = most recent)' } }, required: ['path'] }
+  );
+
+  server.registerTool('extract_text', async (input) => {
+    if (!currentConfig) throw new Error('Configuration not loaded');
+    return extractTextTool(input, currentConfig);
+  },
+    'Extract readable text content from any file type (PDF, Word, Excel, PowerPoint, images, ZIP, CSV, and any text-based format)',
+    {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Absolute path to the file' },
+        options: {
+          type: 'object',
+          description: 'Optional extraction controls',
+          properties: {
+            maxPages:        { type: 'number', description: 'Max pages to extract from PDF' },
+            maxRows:         { type: 'number', description: 'Max rows to extract from Excel/CSV' },
+            maxFiles:        { type: 'number', description: 'Max files to list from ZIP' },
+            chunkSize:       { type: 'number', description: 'Split text into chunks of N characters' },
+            includeMetadata: { type: 'boolean', description: 'Include file size, dates and extension' },
+            ocrEnabled:      { type: 'boolean', description: 'Run OCR on images (requires tesseract.js)' },
+            ocrTimeoutMs:    { type: 'number', description: 'OCR timeout in milliseconds' },
+          }
+        }
+      },
+      required: ['path']
+    }
   );
 
   // Watch config — auto-reloads on changes

@@ -14,6 +14,19 @@ const PermissionEntrySchema = z.object({
 });
 
 /**
+ * Zod Schema for Parseable Configuration
+ * Controls parser behaviour for documents, images and archives
+ */
+const ParseableConfigSchema = z.object({
+  maxPdfPages: z.number().positive().default(50),
+  maxExcelRows: z.number().positive().default(5000),
+  maxZipFiles: z.number().positive().default(100),
+  imageBase64: z.boolean().default(true),
+  ocrEnabled: z.boolean().default(false),
+  ocrTimeoutMs: z.number().positive().default(30000),
+}).optional();
+
+/**
  * Zod Schema for Security Configuration
  * Validates all security-related settings
  */
@@ -23,6 +36,7 @@ const SecurityConfigSchema = z.object({
   binaryExtensions: z.array(z.string()).optional(),
   logAllAccess: z.boolean(),
   logPath: z.string().min(1, 'logPath cannot be empty'),
+  parseable: ParseableConfigSchema,
 });
 
 /**
@@ -57,11 +71,12 @@ export type PermissionEntry = z.infer<typeof PermissionEntrySchema>;
 export type SecurityConfig = z.infer<typeof SecurityConfigSchema>;
 export type BackupConfig = z.infer<typeof BackupConfigSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
+export type ParseableConfig = NonNullable<z.infer<typeof ParseableConfigSchema>>;
 
 /**
  * Export schemas for external validation if needed
  */
-export { ConfigSchema, PermissionEntrySchema, SecurityConfigSchema, BackupConfigSchema };
+export { ConfigSchema, PermissionEntrySchema, SecurityConfigSchema, BackupConfigSchema, ParseableConfigSchema };
 
 /**
  * Gets the default config path based on the operating system.

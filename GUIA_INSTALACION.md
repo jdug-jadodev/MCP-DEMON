@@ -6,7 +6,7 @@ Antes de comenzar, asegúrate de tener instalado:
 
 1. **Node.js** versión 18 o superior
    - Verifica tu versión: `node --version`
-   - Descarga desde: https://nodejs.org
+   - Descarga desde: <https://nodejs.org>
 
 2. **Visual Studio Code** con GitHub Copilot habilitado
 
@@ -50,59 +50,49 @@ npx copilot-fs-mcp --help
 
    ```json
    {
-     "version": "1.0",
-     "permissions": {
-       "allowed": [
-         {
-           "path": "C:/Users/Usuario/Documents",
-           "operations": ["read", "write", "list", "search"]
-         },
-         {
-           "path": "C:/Users/Usuario/Desktop",
-           "operations": ["read", "list", "search"]
-         }
-       ],
-       "denied": [
-         "~/.ssh",
-         "~/.aws",
-         "~/.config/secrets",
-         "C:/Windows/System32"
-       ]
-     },
-     "security": {
-       "maxFileSizeBytes": 5242880,
-       "allowedExtensions": [
-         ".ts",
-         ".js",
-         ".jsx",
-         ".tsx",
-         ".md",
-         ".json",
-         ".txt",
-         ".css",
-         ".html",
-         ".scss",
-         ".yml",
-         ".yaml",
-         ".xml",
-         ".py",
-         ".java",
-         ".c",
-         ".cpp",
-         ".go",
-         ".rs",
-         ".php",
-         ".rb"
-       ],
-       "logAllAccess": true,
-       "logPath": "C:/Users/Usuario/.config/copilot-fs-mcp/logs"
-     },
-     "backup": {
-       "enabled": true,
-       "maxBackups": 10,
-       "backupDir": ".mcp-backups"
-     }
-   }
+
+  "version": "1.0",
+  "permissions": {
+    "allowed": [
+      {
+        "path": "C:/Users/jdurrego/Documents",
+        "operations": ["read", "write", "list", "search"]
+      },
+      {
+        "path": "C:/Users/jdurrego/Downloads",
+        "operations": ["read", "list", "search"]
+      }
+    ],
+    "denied": [
+      "~/.ssh",
+      "~/.aws",
+      "~/.config/secrets",
+      "C:/Windows/System32"
+    ]
+  },
+  "security": {
+    "maxFileSizeBytes": 20971520,
+    "allowedExtensions": [
+      "*"
+    ],
+    "binaryExtensions": [".exe", ".dll", ".bin", ".so", ".dylib", ".class", ".pyc", ".obj", ".o"],
+    "logAllAccess": true,
+    "logPath": "C:/Users/jdurrego/.config/copilot-fs-mcp/logs",
+    "parseable": {
+      "maxPdfPages": 50,
+      "maxExcelRows": 5000,
+      "maxZipFiles": 100,
+      "imageBase64": true,
+      "ocrEnabled": false,
+      "ocrTimeoutMs": 30000
+    }
+  },
+  "backup": {
+    "enabled": true,
+    "maxBackups": 10,
+    "backupDir": ".mcp-backups"
+  }
+}
    ```
 
    **⚠️ IMPORTANTE:** Ajusta las rutas según tus necesidades:
@@ -152,7 +142,7 @@ npx copilot-fs-mcp --help
    "args": ["copilot-fs-mcp", "--config", "C:/Users/Usuario/.config/copilot-fs-mcp/config.json"]
    ```
 
-3. **Guarda el archivo** y reinicia VS Code
+1. **Guarda el archivo** y reinicia VS Code
 
 ---
 
@@ -254,6 +244,7 @@ proyecto/
 1. Verifica que npm instaló globalmente: `npm list -g copilot-fs-mcp`
 2. Encuentra la ruta del binario: `where copilot-fs-mcp` (Windows) o `which copilot-fs-mcp` (Mac/Linux)
 3. Usa la ruta absoluta en `settings.json`:
+
    ```json
    "command": "C:/Users/Usuario/AppData/Roaming/npm/copilot-fs-mcp.cmd"
    ```
@@ -266,12 +257,14 @@ proyecto/
 
 1. Edita `config.json`
 2. Agrega la ruta a `permissions.allowed`:
+
    ```json
    {
      "path": "C:/ruta/al/directorio",
      "operations": ["read", "write", "list", "search"]
    }
    ```
+
 3. Guarda y reinicia VS Code
 
 ### ❌ "File too large" al leer archivos
@@ -281,6 +274,7 @@ proyecto/
 **Solución:**
 
 - Aumenta el límite en `config.json`:
+
   ```json
   "security": {
     "maxFileSizeBytes": 10485760  // 10 MB
@@ -294,6 +288,7 @@ proyecto/
 **Solución:**
 
 - Agrega la extensión en `config.json`:
+
   ```json
   "allowedExtensions": [".ts", ".js", ".py", ".java"]
   ```
@@ -345,7 +340,7 @@ También puedes eliminar:
 
 ---
 
-## 🎉 ¡Listo!
+## 🎉 ¡Listo
 
 Ahora tienes **Copilot FS MCP** completamente configurado. Puedes:
 
